@@ -820,7 +820,7 @@ unsigned char *opcode = &state->memory[state->pc];
             state->a = ans&0xff;
             break;
         }
-        case 0x9f:	//SBB A
+        case 0x9f:  //SBB A
         {
             SBB(state,state->a);
             break;
@@ -863,75 +863,298 @@ unsigned char *opcode = &state->memory[state->pc];
         case 0xbe:	UnimplementedInstruction(state); break;
         case 0xbf:	UnimplementedInstruction(state); break;
 
-        case 0xc0: UnimplementedInstruction(state); break;
+        case 0xc0:  //RNZ
+        if(state->cc.z==0) {
+            state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
+            state->sp += 2;
+        }break;
         case 0xc1: UnimplementedInstruction(state); break;
-        case 0xc2: UnimplementedInstruction(state); break;
-        case 0xc3: UnimplementedInstruction(state); break;    
-        case 0xc4: UnimplementedInstruction(state); break;
+        case 0xc2:  //JNZ
+        {
+            state->pc = (state->cc.z == 0)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
+            break;
+        } 
+        case 0xc3:  //JMP
+        {
+            state->pc = (opcode[2]<<8) | opcode[1];
+            break;
+        }    
+        case 0xc4:  //CNZ
+        {  
+            if(state->cc.z==0) {
+                uint16_t ret = state->pc+2;    
+                state->memory[state->sp-1] = (ret >> 8) & 0xff;    
+                state->memory[state->sp-2] = (ret & 0xff);    
+                state->sp = state->sp - 2;    
+                state->pc = (opcode[2] << 8) | opcode[1];
+            }
+            else state->pc+=2; 
+            break;   
+        } 
         case 0xc5: UnimplementedInstruction(state); break;
         case 0xc6: UnimplementedInstruction(state); break;
-        case 0xc7: UnimplementedInstruction(state); break;
-        case 0xc8: UnimplementedInstruction(state); break;
+        case 0xc7:  //RST 0
+        {
+            uint16_t ret = state->pc + 2;
+            state->memory[state->sp-1] = (ret >> 8) & 0xff;
+            state->memory[state->sp-2] = (ret & 0xff);
+            state->sp-=2;
+            state->pc = 0x0;
+            break;
+        }
+        case 0xc8:  //RZ
+        if(state->cc.z==1) {
+            state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
+            state->sp += 2;    
+        }break;
         case 0xc9: UnimplementedInstruction(state); break;
-        case 0xca: UnimplementedInstruction(state); break;
+        case 0xca:  //JZ
+        {
+            state->pc = (state->cc.z == 1)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
+            break;
+        }
         case 0xcb: UnimplementedInstruction(state); break;
 
-        case 0xcc: UnimplementedInstruction(state); break;
+        case 0xcc:  //CZ
+        {  
+            if(state->cc.z==1) {
+                uint16_t ret = state->pc+2;    
+                state->memory[state->sp-1] = (ret >> 8) & 0xff;    
+                state->memory[state->sp-2] = (ret & 0xff);    
+                state->sp = state->sp - 2;    
+                state->pc = (opcode[2] << 8) | opcode[1];
+            }
+            else state->pc+=2; 
+            break;   
+        }
         case 0xcd: UnimplementedInstruction(state); break;
         case 0xce: UnimplementedInstruction(state); break;
-        case 0xcf: UnimplementedInstruction(state); break;
-        case 0xd0: UnimplementedInstruction(state); break;
+        case 0xcf:  //RST 1
+        {
+            uint16_t ret = state->pc + 2;
+            state->memory[state->sp-1] = (ret >> 8) & 0xff;
+            state->memory[state->sp-2] = (ret & 0xff);
+            state->sp-=2;
+            state->pc = 0x8;
+            break;
+        }
+        case 0xd0:  //RNC
+        if(state->cc.cy==0) {
+            state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
+            state->sp += 2;
+        }break;
         case 0xd1: UnimplementedInstruction(state); break;
-        case 0xd2: UnimplementedInstruction(state); break;
+        case 0xd2:  //JNC 
+        {
+            state->pc = (state->cc.cy == 0)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
+            break;
+        }
         case 0xd3: UnimplementedInstruction(state); break;
-        case 0xd4: UnimplementedInstruction(state); break;
+        case 0xd4:  //CNC
+        {  
+            if(state->cc.cy==0) {
+                uint16_t ret = state->pc+2;    
+                state->memory[state->sp-1] = (ret >> 8) & 0xff;    
+                state->memory[state->sp-2] = (ret & 0xff);    
+                state->sp = state->sp - 2;    
+                state->pc = (opcode[2] << 8) | opcode[1];
+            }
+            else state->pc+=2; 
+            break;   
+        }
         case 0xd5: UnimplementedInstruction(state); break;
         case 0xd6: UnimplementedInstruction(state); break;
-        case 0xd7: UnimplementedInstruction(state); break;
-        case 0xd8: UnimplementedInstruction(state); break;
+        case 0xd7:  //RST 2
+        {
+            uint16_t ret = state->pc + 2;
+            state->memory[state->sp-1] = (ret >> 8) & 0xff;
+            state->memory[state->sp-2] = (ret & 0xff);
+            state->sp-=2;
+            state->pc = 0x10;
+            break;
+        }
+        case 0xd8:  //RC
+        if(state->cc.cy==1) {
+            state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
+            state->sp += 2;
+        }break;
         case 0xd9: UnimplementedInstruction(state); break;
 
-        case 0xda: UnimplementedInstruction(state); break;
+        case 0xda:  //JC
+        {
+            state->pc = (state->cc.cy == 1)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
+            break;
+        }
         case 0xdb: UnimplementedInstruction(state); break;
-        case 0xdc: UnimplementedInstruction(state); break;
+        case 0xdc:  //CC
+        {  
+            if(state->cc.z==1) {
+                uint16_t ret = state->pc+2;    
+                state->memory[state->sp-1] = (ret >> 8) & 0xff;    
+                state->memory[state->sp-2] = (ret & 0xff);    
+                state->sp = state->sp - 2;    
+                state->pc = (opcode[2] << 8) | opcode[1];
+            }
+            else state->pc+=2; 
+            break;   
+        }
         case 0xdd: UnimplementedInstruction(state); break;
 
         case 0xde: UnimplementedInstruction(state); break;
-        case 0xdf: UnimplementedInstruction(state); break;
-        case 0xe0: UnimplementedInstruction(state); break;
+        case 0xdf:  //RST 3
+        {
+            uint16_t ret = state->pc + 2;
+            state->memory[state->sp-1] = (ret >> 8) & 0xff;
+            state->memory[state->sp-2] = (ret & 0xff);
+            state->sp-=2;
+            state->pc = 0x18;
+            break;
+        }
+        case 0xe0:  //RPO
+        if(state->cc.p==0) {
+            state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
+            state->sp += 2;    
+        }break;
         case 0xe1: UnimplementedInstruction(state); break;
-        case 0xe2: UnimplementedInstruction(state); break;
+        case 0xe2:  //JPO
+        {
+            state->pc = (state->cc.p == 0)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
+            break;
+        }
         case 0xe3: UnimplementedInstruction(state); break;
-        case 0xe4: UnimplementedInstruction(state); break;
+        case 0xe4:  //CPO
+        {  
+            if(state->cc.p==0) {
+                uint16_t ret = state->pc+2;    
+                state->memory[state->sp-1] = (ret >> 8) & 0xff;    
+                state->memory[state->sp-2] = (ret & 0xff);    
+                state->sp = state->sp - 2;    
+                state->pc = (opcode[2] << 8) | opcode[1];
+            }
+            else state->pc+=2; 
+            break;   
+        }
         case 0xe5: UnimplementedInstruction(state); break;
         case 0xe6: UnimplementedInstruction(state); break;
-        case 0xe7: UnimplementedInstruction(state); break;
-        case 0xe8: UnimplementedInstruction(state); break;
-        case 0xe9: UnimplementedInstruction(state); break;
-        case 0xea: UnimplementedInstruction(state); break;
+        case 0xe7:  //RST 4
+        {
+            uint16_t ret = state->pc + 2;
+            state->memory[state->sp-1] = (ret >> 8) & 0xff;
+            state->memory[state->sp-2] = (ret & 0xff);
+            state->sp-=2;
+            state->pc = 0x20;
+            break;
+        }
+        case 0xe8:  //RPE
+        if(state->cc.p==1) {
+            state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
+            state->sp += 2;    
+        }break;
+        case 0xe9:  //PCHL
+        {
+            state->pc = (state->h<<8) | state->l; break;
+        }
+        case 0xea:  //JPE
+        {
+            state->pc = (state->cc.p == 1)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
+            break;
+        }
         case 0xeb: UnimplementedInstruction(state); break;
-        case 0xec: UnimplementedInstruction(state); break;
+        case 0xec:  //CPE
+        {  
+            if(state->cc.p==1) {
+                uint16_t ret = state->pc+2;    
+                state->memory[state->sp-1] = (ret >> 8) & 0xff;    
+                state->memory[state->sp-2] = (ret & 0xff);    
+                state->sp = state->sp - 2;    
+                state->pc = (opcode[2] << 8) | opcode[1];
+            }
+            else state->pc+=2; 
+            break;   
+        }
         case 0xed: UnimplementedInstruction(state); break;
 
         case 0xee: UnimplementedInstruction(state); break;
-        case 0xef: UnimplementedInstruction(state); break;
-        case 0xf0: UnimplementedInstruction(state); break;
+        case 0xef:  //RST 5
+        {
+            uint16_t ret = state->pc + 2;
+            state->memory[state->sp-1] = (ret >> 8) & 0xff;
+            state->memory[state->sp-2] = (ret & 0xff);
+            state->sp-=2;
+            state->pc = 0x28;
+            break;
+        }
+        case 0xf0:  //RP
+        if(state->cc.s==0) {
+            state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
+            state->sp += 2;    
+        }break;
         case 0xf1: UnimplementedInstruction(state); break;
-        case 0xf2: UnimplementedInstruction(state); break;
+        case 0xf2:  //JP
+        {
+            state->pc = (state->cc.s == 0)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
+            break;
+        }
         case 0xf3: UnimplementedInstruction(state); break;
-        case 0xf4: UnimplementedInstruction(state); break;
+        case 0xf4:  //CP
+        {  
+            if(state->cc.s==0) {
+                uint16_t ret = state->pc+2;    
+                state->memory[state->sp-1] = (ret >> 8) & 0xff;    
+                state->memory[state->sp-2] = (ret & 0xff);    
+                state->sp = state->sp - 2;    
+                state->pc = (opcode[2] << 8) | opcode[1];
+            }
+            else state->pc+=2; 
+            break;   
+        }
         case 0xf5: UnimplementedInstruction(state); break;
         case 0xf6: UnimplementedInstruction(state); break;
-        case 0xf7: UnimplementedInstruction(state); break;
-        case 0xf8: UnimplementedInstruction(state); break;
+        case 0xf7:  //RST 6
+        {
+            uint16_t ret = state->pc + 2;
+            state->memory[state->sp-1] = (ret >> 8) & 0xff;
+            state->memory[state->sp-2] = (ret & 0xff);
+            state->sp-=2;
+            state->pc = 0x30;
+            break;
+        }
+        case 0xf8:  //RM
+        if(state->cc.s==1) {
+            state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
+            state->sp += 2;    
+        }break;
         case 0xf9: UnimplementedInstruction(state); break;
-        case 0xfa: UnimplementedInstruction(state); break;
+        case 0xfa:  //JM
+        {
+            state->pc = (state->cc.s == 1)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
+            break;
+        }
         case 0xfb: UnimplementedInstruction(state); break;
-        case 0xfc: UnimplementedInstruction(state); break;
+        case 0xfc:  //CM
+        {  
+            if(state->cc.s==1) {
+                uint16_t ret = state->pc+2;    
+                state->memory[state->sp-1] = (ret >> 8) & 0xff;    
+                state->memory[state->sp-2] = (ret & 0xff);    
+                state->sp = state->sp - 2;    
+                state->pc = (opcode[2] << 8) | opcode[1];
+            }
+            else state->pc+=2; 
+            break;   
+        }
         case 0xfd: UnimplementedInstruction(state); break;
 
         case 0xfe: UnimplementedInstruction(state); break;
-        case 0xff: UnimplementedInstruction(state); break;
+        case 0xff:  //RST 7
+        {
+            uint16_t ret = state->pc + 2;
+            state->memory[state->sp-1] = (ret >> 8) & 0xff;
+            state->memory[state->sp-2] = (ret & 0xff);
+            state->sp-=2;
+            state->pc = 0x38;
+            break;
+        }
     }    
 state->pc+=1;    
 } 
