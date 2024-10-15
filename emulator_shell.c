@@ -288,7 +288,7 @@ static int Disassemble8080Op(unsigned char *codebuffer, int pc) {
     return opbytes;    
 }   
 
-static int parity(int x, int size) {
+static inline int parity(int x, int size) {
     int p = 0;
     for (int i = 0; i < size; i++) {
         p ^= (x >> i) & 1;
@@ -296,49 +296,49 @@ static int parity(int x, int size) {
     return !p;
 }
 
-static void cc4(State8080* state, uint16_t ans) {
+static inline void cc4(State8080* state, uint16_t ans) {
     state->cc.z = ((ans&0xff)==0);
     state->cc.s = ((ans&0x80)!=0);
     state->cc.cy = (ans>0xff);
     state->cc.p = parity(ans&0xff,8);
 }
 
-static void cc3(State8080* state, uint16_t ans) {
+static inline void cc3(State8080* state, uint16_t ans) {
     state->cc.z = ((ans&0xff)==0);
     state->cc.s = ((ans&0x80)!=0);
     state->cc.p = parity(ans&0xff,8);
 }
 
-static void UnimplementedInstruction(State8080* state) {        
+static inline void UnimplementedInstruction(State8080* state) {        
 printf ("Error: Unimplemented instruction\n");    
 exit(1);    
 }    
 
-static void ADD(State8080* state, uint8_t x) {
+static inline void ADD(State8080* state, uint8_t x) {
     uint16_t ans = (uint16_t) state->a + (uint16_t) x;
     cc4(state,ans);
     state->a = ans&0xff;
 }
 
-static void ADC(State8080* state, uint8_t x) {
+static inline void ADC(State8080* state, uint8_t x) {
     uint16_t ans = (uint16_t) state->a + (uint16_t) x + (uint16_t) state->cc.cy;
     cc4(state,ans);
     state->a = ans&0xff;
 }
 
-static void SUB(State8080* state, uint8_t x) {
+static inline void SUB(State8080* state, uint8_t x) {
     uint16_t ans = (uint16_t) state->a - (uint16_t) x;
     cc4(state,ans);
     state->a = ans&0xff;
 }
 
-static void SBB(State8080* state, uint8_t x) {
+static inline void SBB(State8080* state, uint8_t x) {
     uint16_t ans = (uint16_t) state->a - (uint16_t) x - (uint16_t) state->cc.cy;
     cc4(state,ans);
     state->a = ans&0xff;
 }
 
-static void DAD(State8080* state, uint8_t x, uint8_t y) {
+static inline void DAD(State8080* state, uint8_t x, uint8_t y) {
     uint32_t pair1 = (state->h<<8) | (state->l);
     uint32_t pair2 = (x<<8) | y;
     uint32_t ans = pair1 + pair2;
@@ -347,28 +347,28 @@ static void DAD(State8080* state, uint8_t x, uint8_t y) {
     state->l = (ans&0xff);
 }
 
-static void ANA(State8080* state, uint8_t x) {
+static inline void ANA(State8080* state, uint8_t x) {
     uint16_t ans = (uint16_t) state->a & (uint16_t) x;
     cc3(state,ans);
     state->cc.cy = 0;
     state->a = ans&0xff;
 }
 
-static void XRA(State8080* state, uint8_t x) {
+static inline void XRA(State8080* state, uint8_t x) {
     uint16_t ans = (uint16_t) state->a ^ (uint16_t) x;
     cc3(state,ans);
     state->cc.cy = 0;
     state->a = ans&0xff;
 }
 
-static void ORA(State8080* state, uint8_t x) {
+static inline void ORA(State8080* state, uint8_t x) {
     uint16_t ans = (uint16_t) state->a | (uint16_t) x;
     cc3(state,ans);
     state->cc.cy = 0;
     state->a = ans&0xff;
 }
 
-static void CMP(State8080* state, uint8_t x) {
+static inline void CMP(State8080* state, uint8_t x) {
     uint16_t ans = (uint16_t) state->a - (uint16_t) x;
     cc4(state,ans);
 }
@@ -409,7 +409,13 @@ unsigned char *opcode = &state->memory[state->pc];
             break;
         }    
         case 0x06: UnimplementedInstruction(state); break;    
-        case 0x07: UnimplementedInstruction(state); break;    
+        case 0x07:  //RLC
+        {
+            uint8_t x = state->a;
+            state-> a = ((x << 1) | (x & 0x80) >> 7);
+            state->cc.cy = ((x & 0x80) == 0x80);
+            break;
+        }  
         case 0x08: UnimplementedInstruction(state); break;    
         
         case 0x09: //DAD B
@@ -441,7 +447,13 @@ unsigned char *opcode = &state->memory[state->pc];
             break;
         }
         case 0x0e: UnimplementedInstruction(state); break;
-        case 0x0f: UnimplementedInstruction(state); break;
+        case 0x0f:  //RRC
+        {
+            uint8_t x = state->a;
+            state-> a = ((x >> 1) | (x & 1) << 7);
+            state->cc.cy = ((x & 1) == 1);
+            break;
+        }
         case 0x10: UnimplementedInstruction(state); break;
 
         case 0x11:	UnimplementedInstruction(state); break;
@@ -469,7 +481,13 @@ unsigned char *opcode = &state->memory[state->pc];
             break;
         }
         case 0x16:	UnimplementedInstruction(state); break;
-        case 0x17:	UnimplementedInstruction(state); break;
+        case 0x17:  //RAL
+        {
+            uint8_t x = state->a;
+            state->a = ((x<<1) | (state->cc.cy));
+            state->cc.cy = ((x&0x80) == 0x80);
+            break;
+        }
         case 0x18:	UnimplementedInstruction(state); break;
 
         case 0x19:	//DAD D
@@ -501,7 +519,12 @@ unsigned char *opcode = &state->memory[state->pc];
             break;
         }
         case 0x1e:	UnimplementedInstruction(state); break;
-        case 0x1f:	UnimplementedInstruction(state); break;
+        case 0x1f:  //RAR
+        {
+            uint8_t x = state->a;
+            state->a = ((x>>1) | (state->cc.cy<<7));
+            state->cc.cy = ((x&1)==1);
+        }
         case 0x20:	UnimplementedInstruction(state); break;
         case 0x21:	UnimplementedInstruction(state); break;
         case 0x22:	UnimplementedInstruction(state); break;
@@ -558,7 +581,10 @@ unsigned char *opcode = &state->memory[state->pc];
             break;
         }
         case 0x2e:	UnimplementedInstruction(state); break;
-        case 0x2f:	UnimplementedInstruction(state); break;
+        case 0x2f:  //CMA
+        {
+            state->a = ~state->a;
+        }
         case 0x30:	UnimplementedInstruction(state); break;
         case 0x31:	UnimplementedInstruction(state); break;
         case 0x32:	UnimplementedInstruction(state); break;
@@ -580,7 +606,10 @@ unsigned char *opcode = &state->memory[state->pc];
             break;
         }
         case 0x36:  UnimplementedInstruction(state); break;
-        case 0x37:	UnimplementedInstruction(state); break;
+        case 0x37:  //STC
+        {
+            state->cc.cy = 1;
+        }
         case 0x38:	UnimplementedInstruction(state); break;
 
         case 0x39:	UnimplementedInstruction(state); break;
@@ -599,7 +628,10 @@ unsigned char *opcode = &state->memory[state->pc];
             break;
         }
         case 0x3e:	UnimplementedInstruction(state); break;
-        case 0x3f:	UnimplementedInstruction(state); break;
+        case 0x3f:  //CMC
+        {
+            state->cc.cy = ~state->cc.cy;
+        }
 
         case 0x40:	UnimplementedInstruction(state); break;
         case 0x41:	UnimplementedInstruction(state); break;
@@ -1187,7 +1219,15 @@ unsigned char *opcode = &state->memory[state->pc];
             break;   
         }
         case 0xe5: UnimplementedInstruction(state); break;
-        case 0xe6: UnimplementedInstruction(state); break;
+        case 0xe6:  //ANI
+        {
+            uint16_t ans = (uint16_t) state->a & opcode[1];
+            cc3(state,ans);
+            state->cc.cy = 0;
+            state->a = ans;
+            state->pc++;
+            break;
+        }
         case 0xe7:  //RST 4
         {
             uint16_t ret = state->pc + 2;
@@ -1226,7 +1266,15 @@ unsigned char *opcode = &state->memory[state->pc];
         }
         case 0xed: UnimplementedInstruction(state); break;
 
-        case 0xee: UnimplementedInstruction(state); break;
+        case 0xee:  //XRI
+        {
+            uint16_t ans = (uint16_t) state->a ^ opcode[1];
+            cc3(state,ans);
+            state->cc.cy = 0;
+            state->a = ans;
+            state->pc++;
+            break;
+        }
         case 0xef:  //RST 5
         {
             uint16_t ret = state->pc + 2;
@@ -1261,7 +1309,15 @@ unsigned char *opcode = &state->memory[state->pc];
             break;   
         }
         case 0xf5: UnimplementedInstruction(state); break;
-        case 0xf6: UnimplementedInstruction(state); break;
+        case 0xf6:  //ORI
+        {
+            uint16_t ans = (uint16_t) state->a | opcode[1];
+            cc3(state,ans);
+            state->cc.cy = 0;
+            state->a = ans;
+            state->pc++;
+            break;
+        }
         case 0xf7:  //RST 6
         {
             uint16_t ret = state->pc + 2;
@@ -1297,7 +1353,13 @@ unsigned char *opcode = &state->memory[state->pc];
         }
         case 0xfd: UnimplementedInstruction(state); break;
 
-        case 0xfe: UnimplementedInstruction(state); break;
+        case 0xfe:  //CPI
+        {
+            uint16_t ans = (uint16_t) state->a -     opcode[1];
+            cc4(state,ans);
+            state->pc++;
+            break;
+        }
         case 0xff:  //RST 7
         {
             uint16_t ret = state->pc + 2;
