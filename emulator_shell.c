@@ -347,6 +347,32 @@ static void DAD(State8080* state, uint8_t x, uint8_t y) {
     state->l = (ans&0xff);
 }
 
+static void ANA(State8080* state, uint8_t x) {
+    uint16_t ans = (uint16_t) state->a & (uint16_t) x;
+    cc3(state,ans);
+    state->cc.cy = 0;
+    state->a = ans&0xff;
+}
+
+static void XRA(State8080* state, uint8_t x) {
+    uint16_t ans = (uint16_t) state->a ^ (uint16_t) x;
+    cc3(state,ans);
+    state->cc.cy = 0;
+    state->a = ans&0xff;
+}
+
+static void ORA(State8080* state, uint8_t x) {
+    uint16_t ans = (uint16_t) state->a | (uint16_t) x;
+    cc3(state,ans);
+    state->cc.cy = 0;
+    state->a = ans&0xff;
+}
+
+static void CMP(State8080* state, uint8_t x) {
+    uint16_t ans = (uint16_t) state->a - (uint16_t) x;
+    cc4(state,ans);
+}
+
 int Emulate8080Op(State8080* state) {    
 unsigned char *opcode = &state->memory[state->pc];    
 
@@ -674,10 +700,7 @@ unsigned char *opcode = &state->memory[state->pc];
         {
             uint16_t offset = (state->h<<8) | (state->l);
             uint16_t ans = (uint16_t) state->a + state->memory[offset];
-            state->cc.z = ((ans&0xff)==0);
-            state->cc.s = ((ans&0x80)!=0);
-            state->cc.cy = (ans>0xff);
-            state->cc.p = parity(ans&0xff,8);
+            cc4(state,ans);
             state->a = ans&0xff;
             break;
         }
@@ -720,10 +743,7 @@ unsigned char *opcode = &state->memory[state->pc];
         {
             uint16_t offset = (state->h<<8) | (state->l);
             uint16_t ans = (uint16_t) state->a + state->memory[offset] + (uint16_t) state->cc.cy;
-            state->cc.z = ((ans&0xff)==0);
-            state->cc.s = ((ans&0x80)!=0);  
-            state->cc.cy = (ans>0xff);
-            state->cc.p = parity(ans&0xff,8);
+            cc4(state,ans);
             state->a = ans&0xff;
             break;
         }
@@ -767,10 +787,7 @@ unsigned char *opcode = &state->memory[state->pc];
         {
             uint16_t offset = (state->h<<8) | (state->l);
             uint16_t ans = (uint16_t) state->a - state->memory[offset];
-            state->cc.z = ((ans&0xff)==0);
-            state->cc.s = ((ans&0x80)!=0);  
-            state->cc.cy = (ans>0xff);
-            state->cc.p = parity(ans&0xff,8);
+            cc4(state,ans);
             state->a = ans&0xff;
             break;
         }
@@ -813,10 +830,7 @@ unsigned char *opcode = &state->memory[state->pc];
         {
             uint16_t offset = (state->h<<8) | (state->l);
             uint16_t ans = (uint16_t) state->a - state->memory[offset] - (uint16_t) state->cc.cy;
-            state->cc.z = ((ans&0xff)==0);
-            state->cc.s = ((ans&0x80)!=0);  
-            state->cc.cy = (ans>0xff);
-            state->cc.p = parity(ans&0xff,8);
+            cc4(state,ans);
             state->a = ans&0xff;
             break;
         }
@@ -826,42 +840,180 @@ unsigned char *opcode = &state->memory[state->pc];
             break;
         }
 
+        case 0xa0:  //ANA B
+        {
+            ANA(state,state->b);
+            break;
+        }
+        case 0xa1:  //ANA C
+        {
+            ANA(state,state->c);
+            break;
+        }
+        case 0xa2:  //ANA D
+        {
+            ANA(state,state->d);
+            break;
+        }
+        case 0xa3:  //ANA E
+        {
+            ANA(state,state->e);
+            break;
+        }
+        case 0xa4:  //ANA H
+        {
+            ANA(state,state->h);
+            break;
+        }
+        case 0xa5:  //ANA L
+        {
+            ANA(state,state->l);
+            break;
+        }
+        case 0xa6:  //ANA M
+        {
+            uint16_t offset = (state->h<<8) | (state->l);
+            uint16_t ans = (uint16_t) state->a & state->memory[offset];
+            cc4(state,ans);
+            state->a = ans&0xff;
+            break;
+        }
+        case 0xa7:  //ANA A
+        {
+            ANA(state,state->a);
+            break;
+        }
 
-        case 0xa0:	UnimplementedInstruction(state); break;
-        case 0xa1:	UnimplementedInstruction(state); break;
-        case 0xa2:	UnimplementedInstruction(state); break;
-        case 0xa3:	UnimplementedInstruction(state); break;
-        case 0xa4:	UnimplementedInstruction(state); break;
-        case 0xa5:	UnimplementedInstruction(state); break;
-        case 0xa6:	UnimplementedInstruction(state); break;
-        case 0xa7:	UnimplementedInstruction(state); break;
+        case 0xa8:  //XRA B
+        {
+            XRA(state,state->b);
+            break;
+        }
+        case 0xa9:  //XRA C
+        {
+            XRA(state,state->c);
+            break;
+        }
+        case 0xaa:  //XRA D
+        {
+            XRA(state,state->d);
+            break;
+        }
+        case 0xab:  //XRA E
+        {
+            XRA(state,state->e);
+            break;
+        }
+        case 0xac:  //XRA H
+        {
+            XRA(state,state->h);
+            break;
+        }
+        case 0xad:  //XRA L
+        {
+            XRA(state,state->l);
+            break;
+        }
+        case 0xae:  //XRA HL
+        {
+            uint16_t offset = (state->h<<8) | (state->l); 
+            uint16_t ans = (uint16_t)state->a & state->memory[offset];
+            cc3(state,ans);
+            state->cc.cy = 0;
+            break;
+        }
+        case 0xaf:  //XRA A
+        {
+            XRA(state,state->a);
+            break;
+        }
 
-        case 0xa8:	UnimplementedInstruction(state); break;
-        case 0xa9:	UnimplementedInstruction(state); break;
-        case 0xaa:	UnimplementedInstruction(state); break;
-        case 0xab:	UnimplementedInstruction(state); break;
-        case 0xac:	UnimplementedInstruction(state); break;
-        case 0xad:	UnimplementedInstruction(state); break;
-        case 0xae:	UnimplementedInstruction(state); break;
-        case 0xaf:	UnimplementedInstruction(state); break;
+        case 0xb0:  //ORA B
+        {
+            ORA(state,state->b);
+            break;
+        }
+        case 0xb1:  //ORA C
+        {
+            ORA(state,state->c);
+            break;
+        }
+        case 0xb2:  //ORA D
+        {
+            ORA(state,state->d);
+            break;
+        }
+        case 0xb3:  //ORA E
+        {
+            ORA(state,state->e);
+            break;
+        }
+        case 0xb4:  //ORA H
+        {
+            ORA(state,state->h);
+            break;
+        }
+        case 0xb5:  //ORA L
+        {
+            ORA(state,state->l);
+            break;
+        }
+        case 0xb6:  //ORA HL
+        {
+            uint16_t offset = (state->h<<8) | (state->l); 
+            uint16_t ans = (uint16_t)state->a | state->memory[offset];
+            cc3(state,ans);
+            state->cc.cy = 0;
+            break;
+        }
+        case 0xb7:  //ORA A
+        {
+            XRA(state,state->a);
+            break;
+        }
 
-        case 0xb0:	UnimplementedInstruction(state); break;
-        case 0xb1:	UnimplementedInstruction(state); break;
-        case 0xb2:	UnimplementedInstruction(state); break;
-        case 0xb3:	UnimplementedInstruction(state); break;
-        case 0xb4:	UnimplementedInstruction(state); break;
-        case 0xb5:	UnimplementedInstruction(state); break;
-        case 0xb6:	UnimplementedInstruction(state); break;
-        case 0xb7:	UnimplementedInstruction(state); break;
-
-        case 0xb8:	UnimplementedInstruction(state); break;
-        case 0xb9:	UnimplementedInstruction(state); break;
-        case 0xba:	UnimplementedInstruction(state); break;
-        case 0xbb:	UnimplementedInstruction(state); break;
-        case 0xbc:	UnimplementedInstruction(state); break;
-        case 0xbd:	UnimplementedInstruction(state); break;
-        case 0xbe:	UnimplementedInstruction(state); break;
-        case 0xbf:	UnimplementedInstruction(state); break;
+        case 0xb8:  //CMP B
+        {
+            CMP(state,state->b);
+            break;
+        }
+        case 0xb9:  //CMP C
+        {
+            CMP(state,state->c);
+            break;
+        }
+        case 0xba:  //CMP D
+        {
+            CMP(state,state->d);
+            break;
+        }
+        case 0xbb:  //CMP E
+        {
+            CMP(state,state->e);
+            break;
+        }
+        case 0xbc:  //CMP H
+        {
+            CMP(state,state->h);
+            break;
+        }
+        case 0xbd:  //CMP L
+        {
+            CMP(state,state->l);
+            break;
+        }
+        case 0xbe:  //CMP HL
+        {
+            uint16_t offset = (state->h<<8) | state->l;
+            uint16_t ans = (uint16_t) state->a - state->memory[offset];
+            cc4(state,ans); 
+            break;
+        }
+        case 0xbf:  //CMP A
+        {
+            CMP(state,state->a);
+            break;
+        }
 
         case 0xc0:  //RNZ
         if(state->cc.z==0) {
