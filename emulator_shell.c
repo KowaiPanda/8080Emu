@@ -310,9 +310,9 @@ static inline void cc3(State8080* state, uint16_t ans) {
 }
 
 static inline void UnimplementedInstruction(State8080* state) {        
-printf ("Error: Unimplemented instruction\n");    
-exit(1);    
-}    
+    printf ("Error: Unimplemented instruction\n");    
+    exit(1);    
+}
 
 static inline void ADD(State8080* state, uint8_t x) {
     uint16_t ans = (uint16_t) state->a + (uint16_t) x;
@@ -378,14 +378,19 @@ unsigned char *opcode = &state->memory[state->pc];
 
     switch(*opcode) {    
         case 0x00: break; //NOP
-        case 0x01: //LXI B D16
+        case 0x01: //LXI B
         {
             state->c = opcode[1];
             state->b = opcode[2];
             state->pc += 2;
             break;    
         }
-        case 0x02: UnimplementedInstruction(state); break;    
+        case 0x02:  //STAX B
+        {
+            uint16_t pair = (state->b<<8) | (state->c);
+            state->memory[pair] = state->a;
+            break;
+        }    
         case 0x03: //INX B
         {
             uint16_t pair = (state->b<<8) | (state->c);
@@ -393,22 +398,27 @@ unsigned char *opcode = &state->memory[state->pc];
             state->b = (ans&0xff00)>>8 ;
             state->c = (ans&0xff);
             break;
-        }    
+        }
         case 0x04: //INR B
         {
             uint8_t ans = state->b+1;
             cc3(state,ans);
             state->b = ans&0xff;
             break;
-        }    
+        }
         case 0x05: //DCR B
         {
             uint8_t ans = state->b-1;
             cc3(state,ans);
             state->b = ans&0xff;
             break;
-        }    
-        case 0x06: UnimplementedInstruction(state); break;    
+        }
+        case 0x06:  //MVI B
+        {
+            state->b = opcode[1];
+            state->pc++;
+            break;
+        }
         case 0x07:  //RLC
         {
             uint8_t x = state->a;
@@ -423,7 +433,12 @@ unsigned char *opcode = &state->memory[state->pc];
             DAD(state, state->b, state->c);
             break;
         }
-        case 0x0a: UnimplementedInstruction(state); break;	
+        case 0x0a:  //LDAX B
+        {
+            uint16_t pair = (state->b<<8) | (state->c);
+            state->a = state->memory[pair];
+            break;
+        }
         case 0x0b: //DCX B
         {
             uint16_t pair = (state->b<<8) | (state->c);
@@ -446,7 +461,12 @@ unsigned char *opcode = &state->memory[state->pc];
             state->c = ans&0xff;
             break;
         }
-        case 0x0e: UnimplementedInstruction(state); break;
+        case 0x0e:  //MVI C
+        {
+            state->c = opcode[1];
+            state->pc++;
+            break;
+        }
         case 0x0f:  //RRC
         {
             uint8_t x = state->a;
@@ -456,8 +476,19 @@ unsigned char *opcode = &state->memory[state->pc];
         }
         case 0x10: UnimplementedInstruction(state); break;
 
-        case 0x11:	UnimplementedInstruction(state); break;
-        case 0x12:	UnimplementedInstruction(state); break;
+        case 0x11: //LXI D
+        {
+            state->e = opcode[1];
+            state->d = opcode[2];
+            state->pc += 2;
+            break;    
+        }
+        case 0x12:  //STAX D
+        {
+            uint16_t pair = (state->d<<8) | (state->e);
+            state->memory[pair] = state->a;
+            break;
+        }
         case 0x13: //INX D
         {
             uint16_t pair = (state->d<<8) | (state->e);
@@ -480,7 +511,12 @@ unsigned char *opcode = &state->memory[state->pc];
             state->b = ans&0xff;
             break;
         }
-        case 0x16:	UnimplementedInstruction(state); break;
+        case 0x16:  //MVI D
+        {
+            state->d = opcode[1];
+            state->pc++;
+            break;
+        }
         case 0x17:  //RAL
         {
             uint8_t x = state->a;
@@ -495,7 +531,12 @@ unsigned char *opcode = &state->memory[state->pc];
             DAD(state, state->d, state->e);
             break;
         }
-        case 0x1a:	UnimplementedInstruction(state); break;
+        case 0x1a:  //LDAX D
+        {
+            uint16_t pair = (state->d<<8) | (state->e);
+            state->a = state->memory[pair];
+            break;
+        }
         case 0x1b: //DCX D
         {
             uint16_t pair = (state->d<<8) | (state->e);
@@ -518,7 +559,12 @@ unsigned char *opcode = &state->memory[state->pc];
             state->c = ans&0xff;
             break;
         }
-        case 0x1e:	UnimplementedInstruction(state); break;
+        case 0x1e:  //MVI E
+        {
+            state->e = opcode[1];
+            state->pc++;
+            break;
+        }
         case 0x1f:  //RAR
         {
             uint8_t x = state->a;
@@ -526,8 +572,21 @@ unsigned char *opcode = &state->memory[state->pc];
             state->cc.cy = ((x&1)==1);
         }
         case 0x20:	UnimplementedInstruction(state); break;
-        case 0x21:	UnimplementedInstruction(state); break;
-        case 0x22:	UnimplementedInstruction(state); break;
+        case 0x21: //LXI H
+        {
+            state->l = opcode[1];
+            state->h = opcode[2];
+            state->pc += 2;
+            break;    
+        }
+        case 0x22:  //SHLD adr
+        {
+            uint16_t adr = (opcode[2]<<8) | (opcode[1]);
+            state->memory[adr+1] = state->h;
+            state->memory[adr] = state->l;
+            state->pc += 2;
+            break;
+        }
         case 0x23: //INX H
         {
             uint16_t pair = (state->h<<8) | (state->l);
@@ -548,7 +607,12 @@ unsigned char *opcode = &state->memory[state->pc];
             cc3(state,ans);
             break;
         }
-        case 0x26:	UnimplementedInstruction(state); break;
+        case 0x26:  //MVI H
+        {
+            state->h = opcode[1];
+            state->pc++;
+            break;
+        }
         case 0x27:	UnimplementedInstruction(state); break;
         case 0x28:	UnimplementedInstruction(state); break;
 
@@ -557,7 +621,14 @@ unsigned char *opcode = &state->memory[state->pc];
             DAD(state, state->h, state->l);
             break;
         }
-        case 0x2a:	UnimplementedInstruction(state); break;
+        case 0x2a:  //LHLD adr
+        {
+            uint16_t adr = (opcode[2]<<8) | (opcode[1]);
+            state->h = state->memory[adr+1];
+            state->l = state->memory[adr];
+            state->pc += 2;
+            break;
+        }
         case 0x2b:	//DCX H
         {
             uint16_t pair = (state->h<<8) | (state->l);
@@ -580,14 +651,30 @@ unsigned char *opcode = &state->memory[state->pc];
             state->b = ans&0xff;
             break;
         }
-        case 0x2e:	UnimplementedInstruction(state); break;
+        case 0x2e:  //MVI L
+        {
+            state->l = opcode[1];
+            state->pc++;
+            break;
+        }
         case 0x2f:  //CMA
         {
             state->a = ~state->a;
         }
         case 0x30:	UnimplementedInstruction(state); break;
-        case 0x31:	UnimplementedInstruction(state); break;
-        case 0x32:	UnimplementedInstruction(state); break;
+        case 0x31: //LXI SP
+        {
+            state->sp = (opcode[2]<<8) | (opcode[1]);
+            state->pc += 2;
+            break;    
+        }
+        case 0x32:  //STA adr
+        {
+            uint16_t adr = (opcode[2]<<8) | (opcode[1]);
+            state->memory[adr] = state->a;
+            state->pc += 2;
+            break;
+        }
         case 0x33:	UnimplementedInstruction(state); break;
         case 0x34:	//INR HL
         {
@@ -605,7 +692,13 @@ unsigned char *opcode = &state->memory[state->pc];
             state->memory[offset] = ans&0xff;
             break;
         }
-        case 0x36:  UnimplementedInstruction(state); break;
+        case 0x36:  //MVI M
+        {
+            uint16_t offset = (state->h<<8) | (state->l);
+            state->memory[offset] = opcode[1];
+            state->pc++;
+            break;
+        }
         case 0x37:  //STC
         {
             state->cc.cy = 1;
@@ -613,7 +706,13 @@ unsigned char *opcode = &state->memory[state->pc];
         case 0x38:	UnimplementedInstruction(state); break;
 
         case 0x39:	UnimplementedInstruction(state); break;
-        case 0x3a:	UnimplementedInstruction(state); break;
+        case 0x3a:  //LDA adr
+        {
+            uint16_t adr = (opcode[2]<<8) | (opcode[1]);
+            state->a = state->memory[adr];
+            state->pc += 2;
+            break;
+        }
         case 0x3b:	UnimplementedInstruction(state); break;
         case 0x3c:	//INR A
         {
@@ -627,7 +726,12 @@ unsigned char *opcode = &state->memory[state->pc];
             cc3(state,ans);
             break;
         }
-        case 0x3e:	UnimplementedInstruction(state); break;
+        case 0x3e:  //MVI A
+        {
+            state->a = opcode[1];
+            state->pc++;
+            break;
+        }
         case 0x3f:  //CMC
         {
             state->cc.cy = ~state->cc.cy;
@@ -1520,7 +1624,16 @@ unsigned char *opcode = &state->memory[state->pc];
             state->pc = (state->cc.p == 1)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
             break;
         }
-        case 0xeb: UnimplementedInstruction(state); break;
+        case 0xeb:  //XCHG
+        {
+            uint8_t tmp = state->h;
+            state->h = state->d;
+            state->d = tmp;
+            tmp = state->l;
+            state->l = state->e;
+            state->e = tmp;
+            break;
+        }
         case 0xec:  //CPE
         {  
             if(state->cc.p==1) {
