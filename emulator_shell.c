@@ -1425,7 +1425,13 @@ unsigned char *opcode = &state->memory[state->pc];
             state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
             state->sp += 2;
         }break;
-        case 0xc1: UnimplementedInstruction(state); break;
+        case 0xc1:  //POP B
+        {
+            state->c = state->memory[state->sp];
+            state->b = state->memory[state->sp+1];
+            state->sp += 2;
+            break;
+        }
         case 0xc2:  //JNZ
         {
             state->pc = (state->cc.z == 0)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
@@ -1448,7 +1454,13 @@ unsigned char *opcode = &state->memory[state->pc];
             else state->pc+=2; 
             break;   
         } 
-        case 0xc5: UnimplementedInstruction(state); break;
+        case 0xc5:  //PUSH B
+        {
+            state->memory[state->sp-1] = state->b; 
+            state->memory[state->sp-2] = state->c;
+            state->sp -= 2;
+            break;
+        }
         case 0xc6: UnimplementedInstruction(state); break;
         case 0xc7:  //RST 0
         {
@@ -1500,7 +1512,13 @@ unsigned char *opcode = &state->memory[state->pc];
             state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
             state->sp += 2;
         }break;
-        case 0xd1: UnimplementedInstruction(state); break;
+        case 0xd1:  //POP D
+        {
+            state->e = state->memory[state->sp];
+            state->d = state->memory[state->sp+1];
+            state->sp += 2;
+            break;
+        }
         case 0xd2:  //JNC 
         {
             state->pc = (state->cc.cy == 0)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
@@ -1519,7 +1537,13 @@ unsigned char *opcode = &state->memory[state->pc];
             else state->pc+=2; 
             break;   
         }
-        case 0xd5: UnimplementedInstruction(state); break;
+        case 0xd5:  //PUSH D
+        {
+            state->memory[state->sp-1] = state->d;
+            state->memory[state->sp-2] = state->e;
+            state->sp -= 2;
+            break;
+        }
         case 0xd6: UnimplementedInstruction(state); break;
         case 0xd7:  //RST 2
         {
@@ -1572,7 +1596,13 @@ unsigned char *opcode = &state->memory[state->pc];
             state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
             state->sp += 2;    
         }break;
-        case 0xe1: UnimplementedInstruction(state); break;
+        case 0xe1:  //POP H
+        {
+            state->l = state->memory[state->sp];
+            state->h = state->memory[state->sp+1];
+            state->sp += 2;
+            break;
+        }
         case 0xe2:  //JPO
         {
             state->pc = (state->cc.p == 0)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
@@ -1591,7 +1621,13 @@ unsigned char *opcode = &state->memory[state->pc];
             else state->pc+=2; 
             break;   
         }
-        case 0xe5: UnimplementedInstruction(state); break;
+        case 0xe5:  //PUSH H
+        {
+            state->memory[state->sp-1] = state->h;
+            state->memory[state->sp-2] = state->l;
+            state->sp -= 2;
+            break;
+        }
         case 0xe6:  //ANI
         {
             uint16_t ans = (uint16_t) state->a & opcode[1];
@@ -1671,7 +1707,18 @@ unsigned char *opcode = &state->memory[state->pc];
             state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
             state->sp += 2;    
         }break;
-        case 0xf1: UnimplementedInstruction(state); break;
+        case 0xf1:  //POP PSW
+        {
+            uint8_t psw = state->memory[state->sp];
+            state->cc.z = ((psw&0x01) == 0x01);
+            state->cc.s = ((psw&0x02) == 0x02);
+            state->cc.p = ((psw&0x04) == 0x04);
+            state->cc.cy = ((psw&0x08) == 0x08);
+            state->cc.ac = ((psw&0x10) == 0x10);
+            state->a = state->memory[state->sp+1];
+            state->sp += 2;
+            break;
+        }
         case 0xf2:  //JP
         {
             state->pc = (state->cc.s == 0)? ((opcode[2]<<8) | opcode[1]):(state->pc+2);
@@ -1690,7 +1737,13 @@ unsigned char *opcode = &state->memory[state->pc];
             else state->pc+=2; 
             break;   
         }
-        case 0xf5: UnimplementedInstruction(state); break;
+        case 0xf5:  //PUSH PSW
+        {
+            state->memory[state->sp-1] = state->a;
+            state->memory[state->sp-2] = (state->cc.z | state->cc.s<<1 | state->cc.p<<2 | state->cc.cy<<3 | state->cc.ac<<4) ;
+            state->sp -= 2;
+            break;
+        }
         case 0xf6:  //ORI
         {
             uint16_t ans = (uint16_t) state->a | opcode[1];
