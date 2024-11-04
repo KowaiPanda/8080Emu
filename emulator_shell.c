@@ -368,8 +368,8 @@ static void CMP(State8080* state, uint8_t x) {
 }
 
 static void PUSH(State8080* state, uint8_t high, uint8_t low) {
-    WriteMem(state, state->sp-1, high);
-    WriteMem(state, state->sp-2, low);
+    writeToMem(state, state->sp-1, high);
+    writeToMem(state, state->sp-2, low);
     state->sp = state->sp - 2;    
 }
 
@@ -379,14 +379,17 @@ static void POP(State8080* state, uint8_t *high, uint8_t *low) {
     state->sp += 2;
 }
 
-int Emulate8080p(State8080* state) {
+int Emulate8080Op(State8080* state) {
+    int cycles = 4;
 	unsigned char *opcode = &state->memory[state->pc];
     Disassemble8080Op(state->memory, state->pc);
-    state->pc+=1;
+    state->pc++;
 
     switch (*opcode)
     {
-        case 0x00: break;   //NOP
+        case 0x00://NOP
+        case 0x20:
+            break;
         case 0x01:  //LXI B,D16
         {
             state->b = opcode[2];
@@ -434,8 +437,8 @@ int Emulate8080p(State8080* state) {
         case 0x0f:  //RRC
         {
             uint8_t x = state->a;
-            state->a = (x&0x1)<<7 | (x>>1);
-            state->cc.cy = (x&0x1 == 1);
+            state->a = ((x&1)<<7 | (x>>1));
+            state->cc.cy = (x&1 == 1);
             break;
         }
         case 0x10: UnimplementedInstruction(state); break;
@@ -474,7 +477,6 @@ int Emulate8080p(State8080* state) {
         case 0x1d: UnimplementedInstruction(state); break;
         case 0x1e: UnimplementedInstruction(state); break;
         case 0x1f: UnimplementedInstruction(state); break;
-        case 0x20: UnimplementedInstruction(state); break;
         case 0x21:  //LXI H,D16
         {
             state->h = opcode[2];
@@ -486,7 +488,7 @@ int Emulate8080p(State8080* state) {
         case 0x23:  //INX H
         {
             uint16_t ans = formPair(state->h, state->l) + 1;
-            state->h = (ans&0xff00)>>8 ;
+            state->h = (ans&0xff00)>>8;
             state->l = (ans&0xff);
             break;  
         }
@@ -727,20 +729,19 @@ int Emulate8080p(State8080* state) {
         case 0xc0: UnimplementedInstruction(state); break;
         case 0xc1:  //POP B
         {
-            POP(state, &state->c, &state->b);
+            POP(state, &state->b, &state->c);
             break;
         }
         case 0xc2:  //JNZ adr
         {
-            if (state->cc.cy==0) {
-                state->pc = (opcode[2]<<8) | opcode[1];
-            }
-            else {
-                state->pc+=2;
-            }
+            state->pc = (state->cc.z == 0)? (formPair(opcode[2], opcode[1])):(state->pc+2);
             break;
         }
-        case 0xc3: UnimplementedInstruction(state); break;
+        case 0xc3:  //JMP
+        {
+            state->pc = formPair(opcode[2], opcode[1]);
+            break;
+        }  
         case 0xc4: UnimplementedInstruction(state); break;
         case 0xc5:  //PUSH B
         {
@@ -759,7 +760,7 @@ int Emulate8080p(State8080* state) {
         case 0xc8: UnimplementedInstruction(state); break;
         case 0xc9:  //RET
         {
-            state->pc = (state->memory[state->sp]) | (state->memory[state->sp+1]<<8);
+            state->pc = formPair(state->memory[state->sp+1], state->memory[state->sp]);
             state->sp+=2;
             break; 
         }
@@ -772,7 +773,7 @@ int Emulate8080p(State8080* state) {
             state->memory[state->sp-1] = (ret>>8) & 0xff;    
             state->memory[state->sp-2] = (ret&0xff);    
             state->sp-=2;    
-            state->pc = (opcode[2]<<8) | opcode[1];
+            state->pc = formPair(opcode[2], opcode[1]);
             break;
         }
         case 0xce: UnimplementedInstruction(state); break;
@@ -784,7 +785,11 @@ int Emulate8080p(State8080* state) {
             break;
         }
         case 0xd2: UnimplementedInstruction(state); break;
-        case 0xd3: UnimplementedInstruction(state); break;
+        case 0xd3:  //OUT
+        {
+            state->pc++;
+            break;
+        }
         case 0xd4: UnimplementedInstruction(state); break;
         case 0xd5:  //PUSH D
         {
@@ -882,5 +887,53 @@ int Emulate8080p(State8080* state) {
         }
         case 0xff: UnimplementedInstruction(state); break;
     }
+    printf("\t");
+	printf("%c", state->cc.z ? 'z' : '.');
+	printf("%c", state->cc.s ? 's' : '.');
+	printf("%c", state->cc.p ? 'p' : '.');
+	printf("%c", state->cc.cy ? 'c' : '.');
+	printf("%c  ", state->cc.ac ? 'a' : '.');
+	printf("A $%02x B $%02x C $%02x D $%02x E $%02x H $%02x L $%02x SP %04x\n", state->a, state->b, state->c,
+				state->d, state->e, state->h, state->l, state->sp);
     return 0;
+}
+
+void ReadFileIntoMemoryAt(State8080* state, char* filename, uint32_t offset)
+{
+	FILE *f= fopen(filename, "rb");
+	if (f==NULL)
+	{
+		printf("error: Couldn't open %s\n", filename);
+		exit(1);
+	}
+	fseek(f, 0L, SEEK_END);
+	int fsize = ftell(f);
+	fseek(f, 0L, SEEK_SET);
+	
+	uint8_t *buffer = &state->memory[offset];
+	fread(buffer, fsize, 1, f);
+	fclose(f);
+}
+
+State8080* Init8080(void)
+{
+	State8080* state = calloc(1,sizeof(State8080));
+	state->memory = malloc(0x10000);
+	return state;
+}
+
+
+int main (int argc, char**argv)
+{
+	int done = 0;
+	int vblankcycles = 0;
+	State8080* state = Init8080();
+	
+	ReadFileIntoMemoryAt(state, "C:/Users/Jeffery/Desktop/Folder/Downloads/space-invaders.rom", 0);
+	
+	while (done == 0)
+	{
+		done = Emulate8080Op(state);
+	}
+	return 0;
 }

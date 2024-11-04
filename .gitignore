@@ -2,4 +2,5 @@ disassembler.c
 disassembler.exe
 .vscode/
 a.exe
+emulator_shell.exe
 emulator_shell_complete.c
